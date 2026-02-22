@@ -1,4 +1,4 @@
-# [Project Name]
+# MahalaOS
 
 **A Linux phone for normal people.**
 
@@ -69,4 +69,4 @@ We need help from people with all skill levels — not just kernel hackers. See 
 
 ## Contact
 
-[TBD]
+TBD

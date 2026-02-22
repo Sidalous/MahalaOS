@@ -102,8 +102,8 @@ pip3 install pmbootstrap
 sudo apt install android-tools-adb android-tools-fastboot
 
 # Clone the project repo
-git clone https://github.com/YOUR-PROJECT/YOUR-PROJECT.git
-cd YOUR-PROJECT
+git clone https://github.com/Sidalous/MahalaOS.git
+cd MahalaOS
 ```
 
 ---
