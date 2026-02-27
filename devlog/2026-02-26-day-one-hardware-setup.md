@@ -1,0 +1,6 @@
+-Received 6T, discovered it's A6010 Chinese model
+-Flashed global firmware via MSMDownloadTool at work
+-Confirmed VoLTE on Vodafone UK — Voice Network Type: LTE
+-Made test calls, audio acceptable
+-Unlocked bootloader, phone entered EDL mode
+-Recovery via MSMDownloadTool needed — lesson learned about keeping tools backed up

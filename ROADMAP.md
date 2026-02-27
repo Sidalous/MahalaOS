@@ -1,14 +1,14 @@
-# Roadmap
+# Roadmap as of 22/2/2026
 
 This is a living document. Dates are targets, not promises.
 
 ---
 
-## Phase 0 — Foundation (Month 1)
+## Phase 0 — Foundation (Month 1) 22/2/26 - 22/3/26
 
 **Goal:** Establish the project, flash the device, understand the landscape.
 
-- [ ] Acquire OnePlus 6T
+- [X] Acquire OnePlus 6T
 - [ ] Flash postmarketOS with Phosh
 - [ ] Daily drive as secondary phone for 2+ weeks
 - [ ] Document every friction point in the issue tracker
@@ -21,7 +21,7 @@ This is a living document. Dates are targets, not promises.
 
 ---
 
-## Phase 1 — Core Reliability (Months 2–3)
+## Phase 1 — Core Reliability (Months 2–3) 22/3/26 - 22/5/2026
 
 **Goal:** Make the basics rock solid. Calls, texts, data, battery.
 
@@ -39,7 +39,7 @@ This is a living document. Dates are targets, not promises.
 
 ---
 
-## Phase 2 — Daily Driver (Months 4–6)
+## Phase 2 — Daily Driver (Months 4–6) 22/5/2026 - 22/8/26
 
 **Goal:** Something a patient, tech-curious person could use as their main phone.
 
@@ -60,7 +60,7 @@ This is a living document. Dates are targets, not promises.
 
 ---
 
-## Phase 3 — Product (Months 7–12)
+## Phase 3 — Product (Months 7–12) 22/8/26 - 22/2/27
 
 **Goal:** Something you could hand to a non-technical person with confidence.
 
