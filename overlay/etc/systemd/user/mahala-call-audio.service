@@ -1,0 +1,12 @@
+[Unit]
+Description=MahalaOS call audio profile switcher
+After=pulseaudio.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/mahala-call-audio.sh
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
