@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=MahalaOS Setup
+Comment=First-boot setup wizard for MahalaOS
+Exec=/usr/lib/mahalaos/wizard/mahalaos-wizard.py
+Icon=mahalaos-wizard
+Terminal=false
+Categories=System;
+NoDisplay=true
+
+# Autostart condition: only run if wizard flag does not exist
+# This is handled in the wizard itself, but can also be checked here
+# via an AutostartCondition (supported by some GNOME session managers)
+# AutostartCondition=unless-exists /var/lib/mahalaos/wizard-complete

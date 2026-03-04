@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+  "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+
+<!--
+  MahalaOS Setup Wizard — polkit policy
+  Grants the wizard specific rights during first-boot setup.
+  Install to: /usr/share/polkit-1/actions/org.mahalaos.wizard.policy
+-->
+
+<policyconfig>
+
+  <vendor>MahalaOS</vendor>
+  <vendor_url>https://mahalaos.org</vendor_url>
+  <icon_name>mahalaos-wizard</icon_name>
+
+  <action id="org.mahalaos.wizard.network.connect">
+    <description>Connect to a WiFi network during setup</description>
+    <message>MahalaOS Setup needs to connect to a WiFi network</message>
+    <defaults>
+      <!-- Allow during first-boot wizard without password prompt -->
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+  <action id="org.mahalaos.wizard.write-flag">
+    <description>Mark the setup wizard as complete</description>
+    <message>MahalaOS Setup is saving your setup progress</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+  </action>
+
+</policyconfig>
