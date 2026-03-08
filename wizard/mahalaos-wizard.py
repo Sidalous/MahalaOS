@@ -63,6 +63,7 @@ class MahalaWizardWindow(Adw.ApplicationWindow):
         super().__init__(**kwargs)
         self.dev_mode = dev_mode
         self.current_screen_index = 0
+        self._wizard_complete = False
 
         self.set_title("MahalaOS Setup")
         self.set_default_size(360, 760)  # OnePlus 6T: 1080x2340, but GTK scales
@@ -127,16 +128,21 @@ class MahalaWizardWindow(Adw.ApplicationWindow):
                 with open(WIZARD_COMPLETE_FLAG, "w") as f:
                     f.write("done\n")
             except PermissionError:
-                # polkit/systemd should ensure this is writable; log and continue
                 print(
                     f"Warning: could not write wizard flag to {WIZARD_COMPLETE_FLAG}"
                 )
-        self.close()
+        # Set flag so _on_close_request allows the close, then quit the
+        # application entirely — self.close() alone can be blocked by the
+        # compositor restarting the window.
+        self._wizard_complete = True
+        self.get_application().quit()
 
     def _on_close_request(self, window):
-        # Block window close — user must complete the wizard
-        # In production this prevents accidental dismissal on first boot
-        return True  # True = block the close
+        # Allow close only once the wizard has been completed.
+        # Returning True blocks the close; False allows it.
+        if self._wizard_complete:
+            return False
+        return True
 
 
 def main():

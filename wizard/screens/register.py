@@ -1,6 +1,7 @@
 """
 Screen 6b — Device Registration
-Optional, anonymous registration. Fire-and-forget POST to registration endpoint.
+Optional, anonymous registration. Fire-and-forget POST to register.mahalaos.org.
+Uses hardware-derived UUID from device_uuid.py and registration_client.py.
 Copy adapts based on install_type (home / franchise / oem).
 """
 
@@ -9,41 +10,45 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Gtk, Adw, GLib
 
-import uuid
-import json
 import threading
-import urllib.request
-import urllib.error
-import os
 
 from screens.base import BaseScreen
-from install_config import read_install_config, save_device_id, load_device_id
+from install_config import read_install_config
 
-REGISTRATION_ENDPOINT = "https://register.mahalaos.org/v1/device"
-REGISTRATION_FLAG     = "/var/lib/mahalaos/registration-status"  # stores result
+# Import the proper registration client from the server/ module.
+# device_uuid.py and registration_client.py must be copied into the wizard/
+# directory alongside this file (or into wizard/screens/).
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-# Copy variants by install_type
+from registration_client import register_device, skip_registration, get_registration_status
+from device_uuid import get_device_uuid
+
+
+# ── Copy variants by install_type ─────────────────────────────────────────────
+
 COPY = {
     "home": {
-        "heading":     "Help MahalaOS grow",
-        "body":        "Register your device anonymously. We record only a random "
-                       "device ID and your country — nothing personal, ever.",
-        "register":    "Register my device",
-        "skip":        "Skip",
+        "heading":  "Help MahalaOS grow",
+        "body":     "Register your device anonymously. We store only a hardware-derived "
+                    "device ID — no name, email, or location. Ever.",
+        "register": "Register my device",
+        "skip":     "Skip",
     },
     "franchise": {
-        "heading":     "Help MahalaOS grow",
-        "body":        "Register your device anonymously. We record only a random "
-                       "device ID and your country — nothing personal, ever.",
-        "register":    "Register my device",
-        "skip":        "Skip",
+        "heading":  "Help MahalaOS grow",
+        "body":     "Register your device anonymously. We store only a hardware-derived "
+                    "device ID — no name, email, or location. Ever.",
+        "register": "Register my device",
+        "skip":     "Skip",
     },
     "oem": {
-        "heading":     "Welcome to the MahalaOS community",
-        "body":        "Join thousands of people using MahalaOS. We'll record only "
-                       "a random device ID and your country — nothing personal, ever.",
-        "register":    "Join the community",
-        "skip":        "Skip for now",
+        "heading":  "Welcome to the MahalaOS community",
+        "body":     "Join the MahalaOS community. We store only a hardware-derived "
+                    "device ID — no name, email, or location. Ever.",
+        "register": "Join the community",
+        "skip":     "Skip for now",
     },
 }
 
@@ -56,7 +61,12 @@ class RegisterScreen(BaseScreen):
         install_type = self.config.get("install_type", "home")
         copy = COPY.get(install_type, COPY["home"])
 
-        # Status page — icon + heading + body
+        # ── Already registered? Skip straight through ─────────────────────────
+        if get_registration_status() == "registered":
+            GLib.idle_add(self._advance)
+            return
+
+        # ── Status page ───────────────────────────────────────────────────────
         status_page = Adw.StatusPage()
         status_page.set_vexpand(True)
         status_page.set_icon_name("system-users-symbolic")
@@ -64,136 +74,85 @@ class RegisterScreen(BaseScreen):
         status_page.set_description(copy["body"])
         self.content_box.append(status_page)
 
-        # Privacy reassurance row
+        # ── Privacy reassurance rows ──────────────────────────────────────────
         privacy_group = Adw.PreferencesGroup()
-        for line in [
-            ("No personal data",      "user-info-symbolic",         "No name, email, or account required."),
-            ("No location tracking",  "find-location-symbolic",     "Country from your locale setting — not GPS."),
-            ("One ping only",         "network-transmit-symbolic",  "Sent once on setup. Never again."),
+        for title, icon, subtitle in [
+            ("No personal data",     "user-info-symbolic",        "No name, email, or account required."),
+            ("No location tracking", "find-location-symbolic",    "We never read your GPS or IP address."),
+            ("One ping only",        "network-transmit-symbolic", "Sent once on setup. Never again."),
         ]:
             row = Adw.ActionRow()
-            row.set_title(line[0])
-            row.set_subtitle(line[2])
-            row.set_icon_name(line[1])
+            row.set_title(title)
+            row.set_subtitle(subtitle)
+            row.set_icon_name(icon)
             privacy_group.add(row)
         self.content_box.append(privacy_group)
 
-        # Feedback label (shown during/after registration attempt)
+        # ── Feedback label ────────────────────────────────────────────────────
         self.feedback = Gtk.Label()
         self.feedback.set_wrap(True)
         self.feedback.set_halign(Gtk.Align.CENTER)
+        self.feedback.set_margin_top(8)
         self.feedback.set_visible(False)
         self.content_box.append(self.feedback)
 
-        # Buttons — Register (primary) + Skip (flat)
+        # ── Register button ───────────────────────────────────────────────────
         self.register_btn = Gtk.Button(label=copy["register"])
         self.register_btn.add_css_class("suggested-action")
         self.register_btn.add_css_class("pill")
-        self.register_btn.connect("clicked", lambda _: self._register())
+        self.register_btn.connect("clicked", lambda _: self._start_registration())
         self.append(self.register_btn)
 
-        skip_btn = Gtk.Button(label=copy["skip"])
-        skip_btn.add_css_class("flat")
-        skip_btn.set_margin_top(8)
-        skip_btn.set_margin_bottom(8)
-        skip_btn.connect("clicked", lambda _: self._skip())
-        self.append(skip_btn)
+        # ── Skip button ───────────────────────────────────────────────────────
+        self.skip_btn = Gtk.Button(label=copy["skip"])
+        self.skip_btn.add_css_class("flat")
+        self.skip_btn.set_margin_top(8)
+        self.skip_btn.set_margin_bottom(8)
+        self.skip_btn.connect("clicked", lambda _: self._skip())
+        self.append(self.skip_btn)
 
-    def _register(self):
+    # ── Registration flow ─────────────────────────────────────────────────────
+
+    def _start_registration(self):
+        """Kick off registration in a background thread — never blocks the UI."""
         self.register_btn.set_sensitive(False)
+        self.skip_btn.set_sensitive(False)
         self._set_feedback("Registering…", style=None)
 
-        thread = threading.Thread(target=self._register_thread, daemon=True)
+        thread = threading.Thread(target=self._registration_thread, daemon=True)
         thread.start()
 
-    def _register_thread(self):
-        config = self.config
-        install_type = config.get("install_type", "home")
-        partner_token = config.get("partner_token", None)
+    def _registration_thread(self):
+        """Runs in background thread. Calls registration_client.register_device()."""
+        success = register_device()
+        GLib.idle_add(self._on_registration_result, success)
 
-        # Reuse existing device_id if present (handles reflash case)
-        device_id = load_device_id()
-        if not device_id:
-            device_id = str(uuid.uuid4())
-            save_device_id(device_id)
-
-        # Derive country from locale
-        country = self._get_country()
-
-        payload = {
-            "device_id":     device_id,
-            "install_type":  install_type,
-            "partner_token": partner_token,
-            "country":       country,
-            "os_version":    config.get("os_version", "unknown"),
-        }
-
-        success = False
-        try:
-            data = json.dumps(payload).encode("utf-8")
-            req = urllib.request.Request(
-                REGISTRATION_ENDPOINT,
-                data=data,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                success = resp.status in (200, 201)
-        except Exception:
-            success = False
-
-        # Write registration status flag for potential future retry
-        self._write_flag("registered" if success else "failed")
-
-        GLib.idle_add(self._on_register_result, success)
-
-    def _on_register_result(self, success):
+    def _on_registration_result(self, success):
+        """Back on the GTK main thread — update UI based on result."""
         self.register_btn.set_sensitive(True)
+        self.skip_btn.set_sensitive(True)
+
         if success:
             self._set_feedback("✓ Registered — thank you!", style="success")
             # Brief pause so user sees confirmation, then advance
             GLib.timeout_add(1200, self._advance)
         else:
-            # Registration failed — not the end of the world, just move on
+            # Failed — not fatal, let user retry or skip
             self._set_feedback(
                 "Couldn't register right now — no problem, you can skip.",
-                style="warning"
+                style="warning",
             )
 
     def _skip(self):
-        self._write_flag("skipped")
-        if self.on_next:
-            self.on_next()
+        skip_registration()
+        self._advance()
 
     def _advance(self):
         if self.on_next:
             self.on_next()
-        return False  # Don't repeat timeout
+        return False  # Prevents GLib.timeout_add from repeating
 
-    def _get_country(self):
-        """Derive ISO country code from system locale."""
-        try:
-            import locale as locale_mod
-            loc = locale_mod.getdefaultlocale()[0] or ""
-            # e.g. "en_GB" → "GB"
-            if "_" in loc:
-                return loc.split("_")[1][:2].upper()
-        except Exception:
-            pass
-        return None
-
-    def _write_flag(self, status):
-        """
-        Write registration status to flag file.
-        Values: "registered", "skipped", "failed"
-        "failed" can be checked later by a background service to retry.
-        """
-        try:
-            os.makedirs(os.path.dirname(REGISTRATION_FLAG), exist_ok=True)
-            with open(REGISTRATION_FLAG, "w") as f:
-                f.write(status + "\n")
-        except Exception:
-            pass
+    # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _set_feedback(self, text, style=None):
         self.feedback.set_text(text)
